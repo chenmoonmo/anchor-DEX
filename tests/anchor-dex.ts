@@ -223,7 +223,7 @@ describe("anchor-dex", () => {
     let amountTotalMint = poolState.totalAmountMinted
       .div(new anchor.BN(10 ** n_decimals))
       .toNumber();
-    console.log("user1 lp amout: ", balance_mint0);
+    console.log("user0 lp amout: ", balance_mint0);
     console.log("total mint lp amount", amountTotalMint);
     assert.equal(balance_mint0, amountTotalMint);
 
@@ -275,7 +275,7 @@ describe("anchor-dex", () => {
     let amountTotalMint = poolState.totalAmountMinted
       .div(new anchor.BN(10 ** n_decimals))
       .toNumber();
-    console.log("user2 lp amout: ", balance_mint0);
+    console.log("user1 lp amout: ", balance_mint0);
     console.log("total mint lp amount", amountTotalMint);
 
     assert.equal(balance_mint0, 50);
@@ -288,5 +288,44 @@ describe("anchor-dex", () => {
 
     assert.equal(vb0, 100);
     assert.equal(vb1, 100);
+  });
+
+  it("removes liquidity from the pool", async () => {
+    let balance_token0_before = await get_token_balance(lp_user0.user0);
+    let balance_token1_before = await get_token_balance(lp_user0.user1);
+    let balance_mint0_before = await get_token_balance(lp_user0.poolAta);
+    console.log("user0 lp amout: ", balance_mint0_before);
+    console.log("balance token0 before: ", balance_token0_before);
+    console.log("balance token1 before: ", balance_token1_before);
+
+    await program.methods
+      .removeLiquidity(lp_amount(25))
+      .accounts({
+        poolState: pool.poolState,
+        poolAuthority: pool.poolAuth,
+        vault0: pool.vault0,
+        vault1: pool.vault1,
+        poolMint: pool.poolMint,
+        userPoolAta: lp_user0.poolAta,
+        user0: lp_user0.user0,
+        user1: lp_user0.user1,
+        owner: lp_user0.signer.publicKey,
+        tokenProgram: token.TOKEN_PROGRAM_ID,
+      })
+      .signers([lp_user0.signer])
+      .rpc();
+
+    let balance_mint0_after = await get_token_balance(lp_user0.poolAta);
+    console.log("user0 lp amout: ", balance_mint0_after);
+
+    let balance_token0 = await get_token_balance(lp_user0.user0);
+    let balance_token1 = await get_token_balance(lp_user0.user1);
+
+    console.log("balance_token0: ", balance_token0);
+    console.log("balance_token1: ", balance_token1);
+
+    assert.equal(balance_mint0_after, 25);
+    assert.equal(balance_token0, 75);
+    assert.equal(balance_token1, 75);
   });
 });

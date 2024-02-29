@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token,
-    token::{ Mint, MintTo, Token, TokenAccount, Transfer},
+    token::{Mint, MintTo, Token, TokenAccount, Transfer, Burn},
 };
 
 use crate::error::ErrorCode;
@@ -66,7 +66,7 @@ pub fn add_liquidity(
 
     require!(amount_to_mint > 0, ErrorCode::NoPoolMintOutput);
 
-    // give pool_mints
+    // mint LP
     pool_state.total_amount_minted += amount_to_mint;
     
     let mint_ctx: CpiContext<'_, '_, '_, '_, MintTo<'_>> = CpiContext::new(
@@ -115,9 +115,56 @@ pub fn remove_liquidity(ctx: Context<LiquidityOperation>,burn_amount: u64) -> Re
     let pool_mint_balance = ctx.accounts.user_pool_ata.amount;
     require!(burn_amount <= pool_mint_balance, ErrorCode::NotEnoughBalance);
 
-    let pool_state = &mut ctx.accounts.pool_state;
-
+    let pool_state: &mut Box<Account<'_, PoolState>> = &mut ctx.accounts.pool_state;
     require!(pool_state.total_amount_minted >= burn_amount, ErrorCode::BurnTooMuch);
+
+    let vault_balance0 = ctx.accounts.vault0.amount as u128;
+    let vault_balance1 = ctx.accounts.vault1.amount as u128;
+
+    // 用户提出的资产数量
+    let [amount0,amount1] = [
+        vault_balance0.checked_mul(burn_amount as u128).unwrap().checked_div(pool_state.total_amount_minted as u128).unwrap() as u64,
+        vault_balance1.checked_mul(burn_amount as u128).unwrap().checked_div(pool_state.total_amount_minted as u128).unwrap() as u64
+
+        // 100 * 25 / 100
+    ];
+
+    // authority
+    let bump = ctx.bumps.pool_authority;
+    let pool_key = pool_state.key();
+    let pda_sign = &[b"authority", pool_key.as_ref(), &[bump]];
+
+    // 提出资产
+    token::transfer(CpiContext::new(
+        ctx.accounts.token_program.to_account_info(),
+        Transfer {
+            from: ctx.accounts.vault0.to_account_info(), 
+            to: ctx.accounts.user0.to_account_info(),
+            authority: ctx.accounts.pool_authority.to_account_info(), 
+        }
+    ).with_signer(&[pda_sign])
+    , amount0)?;
+
+    token::transfer(CpiContext::new(
+        ctx.accounts.token_program.to_account_info(),
+        Transfer {
+            from: ctx.accounts.vault1.to_account_info(), 
+            to: ctx.accounts.user1.to_account_info(),
+            authority: ctx.accounts.pool_authority.to_account_info(), 
+        }
+    ).with_signer(&[pda_sign]), amount1)?;
+
+    // 燃烧LP
+    token::burn(CpiContext::new(
+        ctx.accounts.token_program.to_account_info(),
+        Burn {
+            mint: ctx.accounts.pool_mint.to_account_info(),
+            from: ctx.accounts.user_pool_ata.to_account_info(),
+            authority: ctx.accounts.owner.to_account_info(),
+        }
+    ).with_signer(&[pda_sign]), burn_amount)?;
+
+    pool_state.total_amount_minted -= burn_amount;
 
     Ok(())
 }

@@ -19,10 +19,12 @@ pub fn handler(
 
 #[derive(Accounts)]
 pub struct InitializePool<'info> {
-    // pool for token_x -> token_y 
+    // token0
     pub mint0: Account<'info, Mint>,
+    // token1
     pub mint1: Account<'info, Mint>,
 
+    // 池子信息
     #[account(
         init, 
         payer=payer, 
@@ -32,12 +34,12 @@ pub struct InitializePool<'info> {
     )]
     pub pool_state: Box<Account<'info, PoolState>>,
 
-    // authority so 1 acc pass in can derive all other pdas 
-    /// CHECK: this is the authority for the pool
+    // 持有其他账户权限的账户
+    /// CHECK:
     #[account(seeds=[b"authority", pool_state.key().as_ref()], bump)]
-    pub pool_authority: AccountInfo<'info>,
+    pub pool_authority: UncheckedAccount<'info>,
 
-    // account to hold token X
+    // 持有token0的账户
     #[account(
         init, 
         payer=payer, 
@@ -47,7 +49,7 @@ pub struct InitializePool<'info> {
         token::authority = pool_authority
     )]
     pub vault0: Box<Account<'info, TokenAccount>>, 
-    // account to hold token Y
+    // 持有token1的账户
     #[account(
         init, 
         payer=payer, 
@@ -58,7 +60,7 @@ pub struct InitializePool<'info> {
     )]
     pub vault1: Box<Account<'info, TokenAccount>>, 
 
-    // pool mint : used to track relative contribution amount of LPs
+    // LP token
     #[account(
         init, 
         payer=payer,
@@ -68,10 +70,11 @@ pub struct InitializePool<'info> {
         mint::authority = pool_authority
     )] 
     pub pool_mint: Box<Account<'info, Mint>>, 
+
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    // accounts required to init a new mint
+    // 创建 token 需要的参数
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
