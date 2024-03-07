@@ -25,14 +25,13 @@ interface LPProvider {
 }
 
 describe("anchor-dex", () => {
-  // Configure the client to use the local cluster.
   let provider = anchor.AnchorProvider.env();
   let connection = provider.connection;
   anchor.setProvider(provider);
 
   const program = anchor.workspace.AnchorDex as Program<AnchorDex>;
 
-  let pool: Pool; // async describe in chai doesnt play nice :| so we pass this var around
+  let pool: Pool;
   let n_decimals = 9;
 
   it("initializes a new pool", async () => {
@@ -63,13 +62,12 @@ describe("anchor-dex", () => {
       auth.publicKey,
       n_decimals
     );
-
+    // publickey and bump
     let [poolState, poolState_b] = await web3.PublicKey.findProgramAddressSync(
       [Buffer.from("pool_state"), mint0.toBuffer(), mint1.toBuffer()],
       program.programId
     );
 
-    // all derive from state
     let [authority, authority_b] = await web3.PublicKey.findProgramAddressSync(
       [Buffer.from("authority"), poolState.toBuffer()],
       program.programId
@@ -87,10 +85,6 @@ describe("anchor-dex", () => {
       program.programId
     );
 
-    //  1/10K = 0.01% fees
-    let fee_numerator = new anchor.BN(1);
-    let fee_denominator = new anchor.BN(10000);
-
     await program.methods
       .initializePool()
       .accounts({
@@ -101,12 +95,9 @@ describe("anchor-dex", () => {
         vault1: vault1,
         poolMint: poolMint,
         poolState: poolState,
-        // the rest
         payer: provider.wallet.publicKey,
         systemProgram: web3.SystemProgram.programId,
         tokenProgram: token.TOKEN_PROGRAM_ID,
-        associatedTokenProgram: token.ASSOCIATED_TOKEN_PROGRAM_ID,
-        rent: web3.SYSVAR_RENT_PUBKEY,
       })
       .rpc();
 
@@ -327,5 +318,65 @@ describe("anchor-dex", () => {
     assert.equal(balance_mint0_after, 25);
     assert.equal(balance_token0, 75);
     assert.equal(balance_token1, 75);
+  });
+
+  it("swaps token0 for token1", async () => {
+    let swap_user = web3.Keypair.generate();
+    let swap_user_pk = swap_user.publicKey;
+
+    let user0 = await token.createAssociatedTokenAccount(
+      connection,
+      pool.payer,
+      pool.mint0,
+      swap_user_pk
+    );
+
+    let user1 = await token.createAssociatedTokenAccount(
+      connection,
+      pool.payer,
+      pool.mint1,
+      swap_user_pk
+    );
+
+    await token.mintTo(
+      connection,
+      pool.payer,
+      pool.mint0,
+      user0,
+      pool.auth,
+      100 * 10 ** n_decimals
+    );
+
+    const user0_balance_before = await get_token_balance(user0);
+    const user1_balance_before = await get_token_balance(user1);
+
+    console.log("user0 balance before: ", user0_balance_before);
+    console.log("user1 balance before: ", user1_balance_before);
+
+    await program.methods
+      .swap(new anchor.BN(10 * 10 ** n_decimals), new anchor.BN(0))
+      .accounts({
+        poolState: pool.poolState,
+        poolAuthority: pool.poolAuth,
+        userIn: user0,
+        userOut: user1,
+        vaultIn: pool.vault0,
+        vaultOut: pool.vault1,
+        owner: swap_user_pk,
+        tokenProgram: token.TOKEN_PROGRAM_ID,
+      })
+      .signers([swap_user])
+      .rpc();
+
+    const user0_balance_after = await get_token_balance(user0);
+    const user1_balance_after = await get_token_balance(user1);
+
+    console.log("user0 balance after: ", user0_balance_after);
+    console.log("user1 balance after: ", user1_balance_after);
+
+    // k = 100 * 100
+    // 100 - k / (100 + 10) =
+    assert.equal(user0_balance_after, 90);
+    assert.equal(user1_balance_after, +(75 - (75 * 75) / (75 + 10)).toFixed(9));
   });
 });

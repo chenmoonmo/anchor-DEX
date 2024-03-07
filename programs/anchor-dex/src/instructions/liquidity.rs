@@ -6,16 +6,7 @@ use anchor_spl::{
 
 use crate::error::ErrorCode;
 use crate::state::PoolState;
-
-fn sqrt(x: u128) -> f64 {
-    let mut z = (x + 1) / 2;
-    let mut y = x;
-    while z < y {
-        y = z;
-        z = (x / z + z) / 2;
-    }
-    y as f64
-}
+use crate::math::sqrt;
 
 pub fn add_liquidity(
     ctx: Context<LiquidityOperation>,
@@ -37,14 +28,13 @@ pub fn add_liquidity(
     let deposit1;
     let amount_to_mint;
 
-    // initial deposit
     msg!("vaults: {} {}", vault_balance0, vault_balance1);
     msg!("init deposits: {} {}", amount_liq0, amount_liq1);
 
     if pool_state.total_amount_minted == 0 {
         deposit1 = amount_liq1;
         // lp = sqrt(deposit0 * deposit1)
-        amount_to_mint =sqrt((deposit0 as u128).checked_mul(deposit1 as u128).unwrap()).floor() as u64;
+        amount_to_mint = sqrt((deposit0 as u128).checked_mul(deposit1 as u128).unwrap()).floor() as u64;
 
         msg!("pmint: {}", amount_to_mint);
     } else {
@@ -115,7 +105,7 @@ pub fn remove_liquidity(ctx: Context<LiquidityOperation>,burn_amount: u64) -> Re
     let pool_mint_balance = ctx.accounts.user_pool_ata.amount;
     require!(burn_amount <= pool_mint_balance, ErrorCode::NotEnoughBalance);
 
-    let pool_state: &mut Box<Account<'_, PoolState>> = &mut ctx.accounts.pool_state;
+    let pool_state = &mut ctx.accounts.pool_state;
     require!(pool_state.total_amount_minted >= burn_amount, ErrorCode::BurnTooMuch);
 
     let vault_balance0 = ctx.accounts.vault0.amount as u128;
@@ -125,8 +115,6 @@ pub fn remove_liquidity(ctx: Context<LiquidityOperation>,burn_amount: u64) -> Re
     let [amount0,amount1] = [
         vault_balance0.checked_mul(burn_amount as u128).unwrap().checked_div(pool_state.total_amount_minted as u128).unwrap() as u64,
         vault_balance1.checked_mul(burn_amount as u128).unwrap().checked_div(pool_state.total_amount_minted as u128).unwrap() as u64
-
-        // 100 * 25 / 100
     ];
 
     // authority
@@ -176,11 +164,10 @@ pub struct LiquidityOperation<'info> {
     pub pool_state: Box<Account<'info, PoolState>>,
     /// CHECK: this is the authority for the pool
     #[account(
-        mut,
         seeds=[b"authority", pool_state.key().as_ref()],
         bump
     )]
-    pub pool_authority: AccountInfo<'info>,
+    pub pool_authority: UncheckedAccount<'info>,
 
     #[account(
         mut,

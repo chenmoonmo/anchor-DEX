@@ -1,8 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount},
-};
+use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::state::PoolState;
 
 pub fn handler(
@@ -11,9 +8,7 @@ pub fn handler(
 
     let pool_state = &mut ctx.accounts.pool_state;
     pool_state.total_amount_minted = 0; 
-    pool_state.token_0_mint = ctx.accounts.mint0.key();
-    pool_state.token_1_mint = ctx.accounts.mint1.key();
-    msg!("Pool state initialized, token0: {}, token1: {}", pool_state.token_0_mint, pool_state.token_1_mint);
+    msg!("Pool state initialized");
     Ok(())
 }
 
@@ -23,19 +18,18 @@ pub struct InitializePool<'info> {
     pub mint0: Account<'info, Mint>,
     // token1
     pub mint1: Account<'info, Mint>,
-
     // 池子信息
     #[account(
         init, 
         payer=payer, 
-        space=8 + PoolState::INIT_SPACE,
+        space=PoolState::init_size(),
         seeds=[b"pool_state", mint0.key().as_ref(), mint1.key().as_ref()], 
         bump,
     )]
     pub pool_state: Box<Account<'info, PoolState>>,
 
     // 持有其他账户权限的账户
-    /// CHECK:
+    /// CHECK: this is the authority for the pool
     #[account(seeds=[b"authority", pool_state.key().as_ref()], bump)]
     pub pool_authority: UncheckedAccount<'info>,
 
@@ -77,7 +71,5 @@ pub struct InitializePool<'info> {
     // 创建 token 需要的参数
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
