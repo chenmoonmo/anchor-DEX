@@ -8,6 +8,7 @@ use crate::error::ErrorCode;
 use crate::state::PoolState;
 use crate::math::sqrt;
 
+#[inline(never)]
 pub fn add_liquidity(
     ctx: Context<LiquidityOperation>,
     amount_liq0: u64, // amount of token0
@@ -39,18 +40,19 @@ pub fn add_liquidity(
         msg!("pmint: {}", amount_to_mint);
     } else {
         // require equal amount deposit based on pool exchange rate
-        let exchange10 = vault_balance1.checked_div(vault_balance0).unwrap();
-        let amount_deposit_1 = amount_liq0.checked_mul(exchange10).unwrap();
+        let exchange10 = (vault_balance1 as f64).div(vault_balance0 as f64);
+        let amount_deposit_1 = (amount_liq0 as f64).mul(exchange10).floor() as u64;
 
         require!(amount_deposit_1 <= amount_liq1, ErrorCode::NotEnoughBalance);
         deposit1 = amount_deposit_1;
+        msg!("deposit1: {},total_amount_minted: {},vault_balance1: {}", deposit1,pool_state.total_amount_minted,vault_balance1);
 
-        amount_to_mint = deposit1
-            .checked_div(vault_balance1)
+        amount_to_mint = (deposit1 as u128)
+            .checked_mul(pool_state.total_amount_minted as u128)
             .unwrap()
-            .checked_mul(pool_state.total_amount_minted)
-            .unwrap();
-
+            .checked_div(vault_balance1 as u128)
+            .unwrap() as u64;
+        
         msg!("pmint: {}", amount_to_mint);
     }
 

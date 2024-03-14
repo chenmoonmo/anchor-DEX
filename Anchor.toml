@@ -5,13 +5,13 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-anchor_dex = "937LDtW3Dkgtb2gVVyzQf64pRcPMyyTt4rn4tpyFECtS"
+anchor_dex = "84MC7wnQLJroocUoD8iAzMQmEyKCrVSFJNVLruw5dwz9"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "/Users/simonli/.config/solana/id.json"
 
 [scripts]

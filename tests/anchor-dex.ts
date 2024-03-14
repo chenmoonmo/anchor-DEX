@@ -118,8 +118,6 @@ describe("anchor-dex", () => {
     const b0 = await connection.getTokenAccountBalance(pool.vault0);
 
     console.log(b0);
-
-    console.log(res, res[0].account.token0Mint.equals(mint0));
   });
 
   // helper function
@@ -240,7 +238,7 @@ describe("anchor-dex", () => {
       poolAta: poolAta,
     };
 
-    let [src_amount0_in, src_amount1_in] = [lp_amount(50), lp_amount(50)];
+    let [src_amount0_in, src_amount1_in] = [lp_amount(25), lp_amount(25)];
 
     await program.methods
       .addLiquidity(src_amount0_in, src_amount1_in)
