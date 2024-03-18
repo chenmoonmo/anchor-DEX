@@ -1,4 +1,4 @@
-use std::ops::{Div, Mul};
+
 
 use anchor_lang::prelude::*;
 use anchor_spl::{
@@ -41,14 +41,18 @@ pub fn add_liquidity(
 
         msg!("pmint: {}", amount_to_mint);
     } else {
-        // require equal amount deposit based on pool exchange rate
-        let exchange10 = (vault_balance1 as f64).div(vault_balance0 as f64);
-        let amount_deposit_1 = (amount_liq0 as f64).mul(exchange10).floor() as u64;
+        // y = x * y1 / x1
+        let amount_deposit_1 = amount_liq0
+        .checked_mul(vault_balance1)
+        .unwrap()
+        .checked_div(vault_balance0)
+        .unwrap();
 
         require!(amount_deposit_1 <= amount_liq1, ErrorCode::NotEnoughBalance);
         deposit1 = amount_deposit_1;
-        msg!("deposit1: {},total_amount_minted: {},vault_balance1: {}", deposit1,pool_state.total_amount_minted,vault_balance1);
 
+        msg!("deposit1: {},total_amount_minted: {},vault_balance1: {}", deposit1,pool_state.total_amount_minted,vault_balance1);
+        // lp = lp1 * y / y1 
         amount_to_mint = (deposit1 as u128)
             .checked_mul(pool_state.total_amount_minted as u128)
             .unwrap()
