@@ -2,12 +2,14 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::state::PoolState;
 
-pub fn handler(
+pub fn initialize_pool(
     ctx: Context<InitializePool>, 
 ) -> Result<()> {
 
     let pool_state = &mut ctx.accounts.pool_state;
     pool_state.total_amount_minted = 0; 
+    pool_state.mint0 = ctx.accounts.mint0.key();
+    pool_state.mint1 = ctx.accounts.mint1.key();
     msg!("Pool state initialized");
     Ok(())
 }

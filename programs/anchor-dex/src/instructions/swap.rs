@@ -25,6 +25,7 @@ pub fn swap(ctx: Context<Swap>, amount_in: u64, min_amount_out: u64) -> Result<(
 
     // 计算输出数量
     let k = vault_token_in_balance * vault_token_out_balance;
+    
     let token_out_amount = vault_token_out_balance
         .checked_sub(
             k.checked_div(
@@ -36,7 +37,6 @@ pub fn swap(ctx: Context<Swap>, amount_in: u64, min_amount_out: u64) -> Result<(
         )
         .unwrap() as u64;
 
-    // TODO: token_out_amount > min_amount_out
     require!(token_out_amount >= min_amount_out, ErrorCode::NotEnoughOut);
 
     // 转账

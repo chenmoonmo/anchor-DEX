@@ -14,7 +14,7 @@ pub mod anchor_dex {
     use super::*;
 
     pub fn initialize_pool(ctx: Context<InitializePool>) -> Result<()> {
-        init_pool::handler(ctx)
+        init_pool::initialize_pool(ctx)
     }
     pub fn add_liquidity(
         ctx: Context<LiquidityOperation>,
